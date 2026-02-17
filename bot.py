@@ -75,7 +75,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-И в `requirements.txt` должно быть:
-python-telegram-bot==20.7
-anthropic==0.18.1
