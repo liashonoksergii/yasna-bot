@@ -2,9 +2,8 @@ import os
 import logging
 import base64
 import json
-from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import anthropic
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -17,34 +16,29 @@ ALLOWED_USER_ID = int(os.environ.get("ALLOWED_USER_ID", "0"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
-SYSTEM_PROMPT = """Ты — помощник для семьи, которая заботится о ребёнке по имени Ясна (Yasna Liashonok, 11 лет).
-У Ясны аутизм и эпилепсия. Она принимает Lamotrigin 200mg утром и 200mg вечером ежедневно.
-Школа: Graf von Gallen, Гейдельберг. Перевозчик: R+R Tours.
+SYSTEM_PROMPT = """Ты помощник для семьи. Ребёнок: Ясна Liashonok, 11 лет, аутизм и эпилепсия.
+Lamotrigin 200mg утром и 200mg вечером. Школа: Graf von Gallen, Гейдельберг.
 
-Расписание Ясны:
-- Пн-Ср: автобус в 8:20, домой в 15:30
-- Чт: автобус в 8:20, уроки до 13:15, Lebenshilfe 13:15-16:00 (Kim), забрать в 16:30
-- Пт: автобус в 8:20, уроки до 11:50, Lebenshilfe 11:50-15:30 (Kim), забрать в 15:30
+Расписание:
+- Пн-Ср: автобус 8:20, домой 15:30
+- Чт: автобус 8:20, уроки до 13:15, Lebenshilfe 13:15-16:00 (Kim), забрать в 16:30
+- Пт: автобус 8:20, уроки до 11:50, Lebenshilfe 11:50-15:30 (Kim), забрать в 15:30
 
-Важные контакты:
+Контакты:
 - SPZ Dr. Bendl: +49 6221 56-4837, claudia.bendl@med.uni-heidelberg.de
 - Jobcenter Frau Ersoy: 01602397112
-- Школа (больничные): Krankmeldung@Galen-schule.de
-- Lebenshilfe: Kim (четверг и пятница)
+- Школа: Krankmeldung@Galen-schule.de
 
-Ты общаешься ТОЛЬКО на русском языке.
-Ты помогаешь: переводить письма с немецкого, анализировать документы и фото записок, напоминать о важных датах и задачах.
-
-Если в сообщении есть дата и время события — извлеки их и предложи добавить в Google Calendar.
-Отвечай в формате JSON только когда нужно добавить событие:
-{"action": "add_event", "title": "название", "date": "YYYY-MM-DD", "time": "HH:MM", "duration": 60, "description": "описание"}
+Общайся ТОЛЬКО на русском языке.
+Если нужно добавить событие в календарь — отвечай ТОЛЬКО валидным JSON без markdown:
+{"action":"add_event","title":"название","date":"YYYY-MM-DD","time":"HH:MM","duration":60,"description":"описание"}
 В остальных случаях отвечай обычным текстом."""
 
 conversation_history = {}
 user_tokens = {}
 
-def get_auth_url():
-    flow = Flow.from_client_config(
+def get_flow():
+    return Flow.from_client_config(
         {
             "installed": {
                 "client_id": GOOGLE_CLIENT_ID,
@@ -54,11 +48,14 @@ def get_auth_url():
                 "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob"]
             }
         },
-        scopes=["https://www.googleapis.com/auth/calendar"]
+        scopes=["https://www.googleapis.com/auth/calendar"],
+        redirect_uri="urn:ietf:wg:oauth:2.0:oob"
     )
-    flow.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
+
+def get_auth_url():
+    flow = get_flow()
     auth_url, _ = flow.authorization_url(prompt="consent")
-    return auth_url, flow
+    return auth_url
 
 def add_to_calendar(token_info, event_data):
     creds = Credentials(
@@ -69,16 +66,13 @@ def add_to_calendar(token_info, event_data):
         client_secret=GOOGLE_CLIENT_SECRET
     )
     service = build("calendar", "v3", credentials=creds)
-    
     start_dt = f"{event_data['date']}T{event_data['time']}:00"
-    
     event = {
         "summary": event_data["title"],
         "description": event_data.get("description", ""),
         "start": {"dateTime": start_dt, "timeZone": "Europe/Berlin"},
         "end": {"dateTime": start_dt, "timeZone": "Europe/Berlin"}
     }
-    
     service.events().insert(calendarId="primary", body=event).execute()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -108,23 +102,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
     else:
         text = update.message.text
-        
         if text.startswith("AUTH:"):
             auth_code = text.replace("AUTH:", "").strip()
             try:
-                _, flow = get_auth_url()
+                flow = get_flow()
                 flow.fetch_token(code=auth_code)
                 creds = flow.credentials
                 user_tokens[user_id] = {
                     "token": creds.token,
                     "refresh_token": creds.refresh_token
                 }
-                await update.message.reply_text("✅ Google Calendar подключён! Теперь я могу добавлять события.")
+                await update.message.reply_text("Google Calendar подключён!")
                 return
             except Exception as e:
                 await update.message.reply_text(f"Ошибка авторизации: {e}")
                 return
-        
         conversation_history[user_id].append({"role": "user", "content": text})
 
     if len(conversation_history[user_id]) > 20:
@@ -141,23 +133,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_history[user_id].append({"role": "assistant", "content": assistant_message})
 
     try:
-     clean = assistant_message
-        if "```json" in clean:
-            clean = clean.split("```json")[1].split("```")[0].strip()
-        elif "```" in clean:
-            clean = clean.split("```")[1].split("```")[0].strip()
-        event_data = json.loads(clean)
+        event_data = json.loads(assistant_message.strip())
         if event_data.get("action") == "add_event":
             if user_id not in user_tokens:
-                auth_url, _ = get_auth_url()
+                auth_url = get_auth_url()
                 await update.message.reply_text(
-                    f"Для добавления в календарь нужна авторизация.\n\n1. Открой эту ссылку:\n{auth_url}\n\n2. Войди в Google и скопируй код\n3. Отправь мне: AUTH:код"
+                    f"Для добавления в календарь нужна авторизация.\n\n1. Открой ссылку:\n{auth_url}\n\n2. Войди в Google и скопируй код\n3. Отправь мне: AUTH:код"
                 )
             else:
                 add_to_calendar(user_tokens[user_id], event_data)
-                await update.message.reply_text(f"✅ Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}")
+                await update.message.reply_text(f"Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}")
             return
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, KeyError):
         pass
 
     await update.message.reply_text(assistant_message)
