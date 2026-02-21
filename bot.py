@@ -141,7 +141,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conversation_history[user_id].append({"role": "assistant", "content": assistant_message})
 
     try:
-        event_data = json.loads(assistant_message)
+     clean = assistant_message
+        if "```json" in clean:
+            clean = clean.split("```json")[1].split("```")[0].strip()
+        elif "```" in clean:
+            clean = clean.split("```")[1].split("```")[0].strip()
+        event_data = json.loads(clean)
         if event_data.get("action") == "add_event":
             if user_id not in user_tokens:
                 auth_url, _ = get_auth_url()
