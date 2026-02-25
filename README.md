@@ -1,83 +1,42 @@
-import os
-import logging
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
-import anthropic
+# 🤖 Familien Helfer — AI Telegram Bot
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+An intelligent Telegram bot that helps families manage paperwork, 
+translate German documents, and organize schedules via Google Calendar.
 
-ANTHROPIC_CLIENT = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-ALLOWED_USER_ID = int(os.environ.get("ALLOWED_USER_ID", "0"))
+## ✨ Features
 
-SYSTEM_PROMPT = """Ты — помощник для семьи, которая заботится о ребёнке по имени Ясна (Yasna Liashonok, 11 лет).
-У Ясны аутизм и эпилепсия. Она принимает Lamotrigin 200mg утром и 200mg вечером ежедневно.
-Школа: Graf von Gallen, Гейдельберг. Перевозчик: R+R Tours.
+- 🇩🇪 Translates German documents and photos to Russian
+- 📷 Reads handwritten notes via Claude Vision AI
+- 📅 Adds events directly to Google Calendar
+- 🔒 Access restricted to authorized user only
+- 💬 Remembers conversation context
 
-Расписание Ясны:
-- Пн-Ср: автобус в 8:20, домой в 15:30
-- Чт: автобус в 8:20, уроки до 13:15, Lebenshilfe 13:15-16:00 (Kim), забрать в 16:30
-- Пт: автобус в 8:20, уроки до 11:50, Lebenshilfe 11:50-15:30 (Kim), забрать в 15:30
+## 🛠 Tech Stack
 
-Важные контакты:
-- SPZ Dr. Bendl: +49 6221 56-4837, claudia.bendl@med.uni-heidelberg.de
-- Jobcenter Frau Ersoy: 01602397112
-- Школа (больничные): Krankmeldung@Galen-schule.de
-- Lebenshilfe: Kim (четверг и пятница)
+- Python 3.13
+- python-telegram-bot 21.9
+- Anthropic Claude API
+- Google Calendar API + OAuth 2.0
+- Railway (cloud hosting)
 
-Ты общаешься ТОЛЬКО на русском языке.
-Ты помогаешь: переводить письма с немецкого, анализировать документы, напоминать о важных датах и задачах.
-Веди себя как внимательный и заботливый помощник.
-Логируй все важные действия с датой и временем."""
+## 🚀 How to Run
+```bash
+git clone https://github.com/liashonoksergii/yasna-bot.git
+cd yasna-bot
+pip install -r requirements.txt
+python bot.py
+```
 
-conversation_history = {}
+## 🔐 Environment Variables
+```
+TELEGRAM_BOT_TOKEN=
+ANTHROPIC_API_KEY=
+ALLOWED_USER_ID=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    
-    if ALLOWED_USER_ID != 0 and user_id != ALLOWED_USER_ID:
-        await update.message.reply_text("Доступ запрещён.")
-        return
-    
-    user_message = update.message.text
-    
-    if user_id not in conversation_history:
-        conversation_history[user_id] = []
-    
-    conversation_history[user_id].append({
-        "role": "user",
-        "content": user_message
-    })
-    
-    if len(conversation_history[user_id]) > 20:
-        conversation_history[user_id] = conversation_history[user_id][-20:]
-    
-    try:
-        response = ANTHROPIC_CLIENT.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=2048,
-            system=SYSTEM_PROMPT,
-            messages=conversation_history[user_id]
-        )
-        
-        assistant_message = response.content[0].text
-        
-        conversation_history[user_id].append({
-            "role": "assistant",
-            "content": assistant_message
-        })
-        
-        await update.message.reply_text(assistant_message)
-        
-    except Exception as e:
-        logger.error(f"Ошибка: {e}")
-        await update.message.reply_text("Произошла ошибка. Попробуй ещё раз.")
+## 👨‍💻 Author
 
-def main():
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    app = Application.builder().token(token).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+Sergii Liashonok — studying AI Automation at IT Career Hub  
+📍 Heidelberg, Germany
