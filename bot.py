@@ -47,13 +47,17 @@ def get_credentials():
         return None
     try:
         token_data = json.loads(token_json)
-        return Credentials(
+        creds = Credentials(
             token=token_data.get("token"),
             refresh_token=token_data.get("refresh_token"),
             token_uri="https://oauth2.googleapis.com/token",
             client_id=GOOGLE_CLIENT_ID,
             client_secret=GOOGLE_CLIENT_SECRET
         )
+        if not creds.valid:
+            from google.auth.transport.requests import Request
+            creds.refresh(Request())
+        return creds
     except:
         return None
 
