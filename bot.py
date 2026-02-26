@@ -17,18 +17,7 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 GOOGLE_TOKEN = os.environ.get("GOOGLE_TOKEN")
 
-SYSTEM_PROMPT = """Ты помощник для семьи с ребёнком с особыми потребностями в Германии.
-
-Ты помогаешь:
-- Переводить письма и документы с немецкого на русский
-- Анализировать фото записок от учителей
-- Отвечать на вопросы о расписании и контактах
-- Добавлять события в Google Calendar
-
-Общайся ТОЛЬКО на русском языке.
-Если нужно добавить событие в календарь — отвечай ТОЛЬКО валидным JSON без markdown:
-{"action":"add_event","title":"название","date":"YYYY-MM-DD","time":"HH:MM","duration":60,"description":"описание"}
-В остальных случаях отвечай обычным текстом.""""""
+SYSTEM_PROMPT = os.environ.get("SYSTEM_PROMPT", "Ты помощник для семьи. Общайся только на русском языке.")
 
 conversation_history = {}
 
@@ -123,7 +112,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 await update.message.reply_text(
                     f"✅ Google Calendar подключён!\n\n"
-                    f"Теперь добавь это в Railway Variables чтобы не авторизоваться снова:\n\n"
+                    f"Добавь в Railway Variables:\n\n"
                     f"Название: GOOGLE_TOKEN\n"
                     f"Значение: {token_data}"
                 )
