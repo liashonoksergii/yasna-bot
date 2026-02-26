@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_USER_ID = int(os.environ.get("ALLOWED_USER_ID", "0"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+GOOGLE_TOKEN = os.environ.get("GOOGLE_TOKEN")
 
 SYSTEM_PROMPT = """Ты помощник для семьи. Ребёнок: Ясна Liashonok, 11 лет, аутизм и эпилепсия.
 Lamotrigin 200mg утром и 200mg вечером. Школа: Graf von Gallen, Гейдельберг.
@@ -35,7 +36,6 @@ Lamotrigin 200mg утром и 200mg вечером. Школа: Graf von Gallen
 В остальных случаях отвечай обычным текстом."""
 
 conversation_history = {}
-user_tokens = {}
 
 def get_flow():
     return Flow.from_client_config(
@@ -57,14 +57,26 @@ def get_auth_url():
     auth_url, _ = flow.authorization_url(prompt="consent")
     return auth_url
 
-def add_to_calendar(token_info, event_data):
-    creds = Credentials(
-        token=token_info["token"],
-        refresh_token=token_info["refresh_token"],
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=GOOGLE_CLIENT_ID,
-        client_secret=GOOGLE_CLIENT_SECRET
-    )
+def get_credentials():
+    token_json = GOOGLE_TOKEN
+    if not token_json:
+        return None
+    try:
+        token_data = json.loads(token_json)
+        return Credentials(
+            token=token_data.get("token"),
+            refresh_token=token_data.get("refresh_token"),
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET
+        )
+    except:
+        return None
+
+def add_to_calendar(event_data):
+    creds = get_credentials()
+    if not creds:
+        return False
     service = build("calendar", "v3", credentials=creds)
     start_dt = f"{event_data['date']}T{event_data['time']}:00"
     event = {
@@ -74,6 +86,7 @@ def add_to_calendar(token_info, event_data):
         "end": {"dateTime": start_dt, "timeZone": "Europe/Berlin"}
     }
     service.events().insert(calendarId="primary", body=event).execute()
+    return True
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -102,21 +115,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
     else:
         text = update.message.text
+
         if text.startswith("AUTH:"):
             auth_code = text.replace("AUTH:", "").strip()
             try:
                 flow = get_flow()
                 flow.fetch_token(code=auth_code)
                 creds = flow.credentials
-                user_tokens[user_id] = {
+                token_data = json.dumps({
                     "token": creds.token,
                     "refresh_token": creds.refresh_token
-                }
-                await update.message.reply_text("Google Calendar подключён!")
+                })
+                await update.message.reply_text(
+                    f"✅ Google Calendar подключён!\n\n"
+                    f"Теперь добавь это в Railway Variables чтобы не авторизоваться снова:\n\n"
+                    f"Название: GOOGLE_TOKEN\n"
+                    f"Значение: {token_data}"
+                )
                 return
             except Exception as e:
                 await update.message.reply_text(f"Ошибка авторизации: {e}")
                 return
+
         conversation_history[user_id].append({"role": "user", "content": text})
 
     if len(conversation_history[user_id]) > 20:
@@ -135,14 +155,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         event_data = json.loads(assistant_message.strip())
         if event_data.get("action") == "add_event":
-            if user_id not in user_tokens:
+            creds = get_credentials()
+            if not creds:
                 auth_url = get_auth_url()
                 await update.message.reply_text(
-                    f"Для добавления в календарь нужна авторизация.\n\n1. Открой ссылку:\n{auth_url}\n\n2. Войди в Google и скопируй код\n3. Отправь мне: AUTH:код"
+                    f"Для добавления в календарь нужна авторизация.\n\n"
+                    f"1. Открой ссылку:\n{auth_url}\n\n"
+                    f"2. Войди в Google и скопируй код\n"
+                    f"3. Отправь мне: AUTH:код"
                 )
             else:
-                add_to_calendar(user_tokens[user_id], event_data)
-                await update.message.reply_text(f"Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}")
+                add_to_calendar(event_data)
+                await update.message.reply_text(
+                    f"✅ Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}"
+                )
             return
     except (json.JSONDecodeError, KeyError):
         pass
