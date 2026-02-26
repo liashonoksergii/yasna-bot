@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import anthropic
 from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
@@ -16,8 +17,7 @@ ALLOWED_USER_ID = int(os.environ.get("ALLOWED_USER_ID", "0"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 GOOGLE_TOKEN = os.environ.get("GOOGLE_TOKEN")
-
-SYSTEM_PROMPT = os.environ.get("SYSTEM_PROMPT", "Ты помощник для семьи. Общайся только на русском языке.")
+SYSTEM_PROMPT = os.environ.get("SYSTEM_PROMPT", "Ты помощник для семьи. Общайся только на русском языке. Если нужно добавить событие в календарь — отвечай ТОЛЬКО валидным JSON: {\"action\":\"add_event\",\"title\":\"название\",\"date\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"duration\":60,\"description\":\"описание\"}")
 
 conversation_history = {}
 
@@ -42,39 +42,42 @@ def get_auth_url():
     return auth_url
 
 def get_credentials():
-    token_json = GOOGLE_TOKEN
-    if not token_json:
+    if not GOOGLE_TOKEN:
         return None
     try:
-        token_data = json.loads(token_json)
+        token_data = json.loads(GOOGLE_TOKEN)
         creds = Credentials(
             token=token_data.get("token"),
             refresh_token=token_data.get("refresh_token"),
             token_uri="https://oauth2.googleapis.com/token",
             client_id=GOOGLE_CLIENT_ID,
-            client_secret=GOOGLE_CLIENT_SECRET
+            client_secret=GOOGLE_CLIENT_SECRET,
+            scopes=["https://www.googleapis.com/auth/calendar"]
         )
-        if not creds.valid:
-            from google.auth.transport.requests import Request
-            creds.refresh(Request())
+        creds.refresh(Request())
         return creds
-    except:
+    except Exception as e:
+        logger.error(f"Credentials error: {e}")
         return None
 
 def add_to_calendar(event_data):
     creds = get_credentials()
     if not creds:
         return False
-    service = build("calendar", "v3", credentials=creds)
-    start_dt = f"{event_data['date']}T{event_data['time']}:00"
-    event = {
-        "summary": event_data["title"],
-        "description": event_data.get("description", ""),
-        "start": {"dateTime": start_dt, "timeZone": "Europe/Berlin"},
-        "end": {"dateTime": start_dt, "timeZone": "Europe/Berlin"}
-    }
-    service.events().insert(calendarId="primary", body=event).execute()
-    return True
+    try:
+        service = build("calendar", "v3", credentials=creds)
+        start_dt = f"{event_data['date']}T{event_data['time']}:00"
+        event = {
+            "summary": event_data["title"],
+            "description": event_data.get("description", ""),
+            "start": {"dateTime": start_dt, "timeZone": "Europe/Berlin"},
+            "end": {"dateTime": start_dt, "timeZone": "Europe/Berlin"}
+        }
+        service.events().insert(calendarId="primary", body=event).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Calendar error: {e}")
+        return False
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -143,8 +146,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         event_data = json.loads(assistant_message.strip())
         if event_data.get("action") == "add_event":
-            creds = get_credentials()
-            if not creds:
+            if not GOOGLE_TOKEN:
                 auth_url = get_auth_url()
                 await update.message.reply_text(
                     f"Для добавления в календарь нужна авторизация.\n\n"
@@ -153,10 +155,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"3. Отправь мне: AUTH:код"
                 )
             else:
-                add_to_calendar(event_data)
-                await update.message.reply_text(
-                    f"✅ Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}"
-                )
+                success = add_to_calendar(event_data)
+                if success:
+                    await update.message.reply_text(
+                        f"✅ Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}"
+                    )
+                else:
+                    await update.message.reply_text("Ошибка при добавлении в календарь. Проверь логи.")
             return
     except (json.JSONDecodeError, KeyError):
         pass
