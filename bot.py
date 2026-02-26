@@ -17,23 +17,18 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 GOOGLE_TOKEN = os.environ.get("GOOGLE_TOKEN")
 
-SYSTEM_PROMPT = """Ты помощник для семьи. Ребёнок: Ясна Liashonok, 11 лет, аутизм и эпилепсия.
-Lamotrigin 200mg утром и 200mg вечером. Школа: Graf von Gallen, Гейдельберг.
+SYSTEM_PROMPT = """Ты помощник для семьи с ребёнком с особыми потребностями в Германии.
 
-Расписание:
-- Пн-Ср: автобус 8:20, домой 15:30
-- Чт: автобус 8:20, уроки до 13:15, Lebenshilfe 13:15-16:00 (Kim), забрать в 16:30
-- Пт: автобус 8:20, уроки до 11:50, Lebenshilfe 11:50-15:30 (Kim), забрать в 15:30
-
-Контакты:
-- SPZ Dr. Bendl: +49 6221 56-4837, claudia.bendl@med.uni-heidelberg.de
-- Jobcenter Frau Ersoy: 01602397112
-- Школа: Krankmeldung@Galen-schule.de
+Ты помогаешь:
+- Переводить письма и документы с немецкого на русский
+- Анализировать фото записок от учителей
+- Отвечать на вопросы о расписании и контактах
+- Добавлять события в Google Calendar
 
 Общайся ТОЛЬКО на русском языке.
 Если нужно добавить событие в календарь — отвечай ТОЛЬКО валидным JSON без markdown:
 {"action":"add_event","title":"название","date":"YYYY-MM-DD","time":"HH:MM","duration":60,"description":"описание"}
-В остальных случаях отвечай обычным текстом."""
+В остальных случаях отвечай обычным текстом.""""""
 
 conversation_history = {}
 
