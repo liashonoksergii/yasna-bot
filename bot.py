@@ -2,6 +2,7 @@ import os
 import logging
 import base64
 import json
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import anthropic
@@ -42,42 +43,86 @@ def get_auth_url():
     return auth_url
 
 def get_credentials():
+    # ── 1. Проверяем что переменная вообще есть
     if not GOOGLE_TOKEN:
+        logger.warning("GOOGLE_TOKEN не задан в переменных Railway")
         return None
+
     try:
         token_json = base64.b64decode(GOOGLE_TOKEN).decode("utf-8")
         token_data = json.loads(token_json)
+        logger.info(f"Token data keys: {list(token_data.keys())}")  # для отладки
+    except Exception as e:
+        logger.error(f"Не удалось декодировать GOOGLE_TOKEN: {e}")
+        return None
+
+    refresh_token = token_data.get("refresh_token")
+    if not refresh_token:
+        logger.error("refresh_token отсутствует в GOOGLE_TOKEN")
+        return None
+
+    try:
         creds = Credentials(
             token=token_data.get("token"),
-            refresh_token=token_data.get("refresh_token"),
+            refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
             client_id=GOOGLE_CLIENT_ID,
             client_secret=GOOGLE_CLIENT_SECRET,
             scopes=["https://www.googleapis.com/auth/calendar"]
         )
-        creds.refresh(Request())
+
+        # ── 2. Обновляем токен только если он истёк или невалидный
+        if not creds.valid:
+            if creds.expired and creds.refresh_token:
+                logger.info("Токен истёк, обновляем...")
+                creds.refresh(Request())
+                logger.info("Токен успешно обновлён")
+            else:
+                logger.error("Токен недействителен и не может быть обновлён")
+                return None
+
         return creds
+
     except Exception as e:
-        logger.error(f"Credentials error: {e}")
+        logger.error(f"Ошибка при создании/обновлении credentials: {e}")
         return None
 
 def add_to_calendar(event_data):
     creds = get_credentials()
     if not creds:
+        logger.error("Не удалось получить credentials для Calendar")
         return False
     try:
         service = build("calendar", "v3", credentials=creds)
+
         start_dt = f"{event_data['date']}T{event_data['time']}:00"
+        duration = event_data.get("duration", 60)
+
+        # ── 3. Правильно считаем время окончания
+        start_time = datetime.fromisoformat(start_dt)
+        end_time = start_time + timedelta(minutes=duration)
+        end_dt = end_time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        # ── 4. Напоминания: за 1 день (1440 мин) и за 2 часа (120 мин)
         event = {
             "summary": event_data["title"],
             "description": event_data.get("description", ""),
             "start": {"dateTime": start_dt, "timeZone": "Europe/Berlin"},
-            "end": {"dateTime": start_dt, "timeZone": "Europe/Berlin"}
+            "end": {"dateTime": end_dt, "timeZone": "Europe/Berlin"},
+            "reminders": {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": 1440},  # за 1 день
+                    {"method": "popup", "minutes": 120},   # за 2 часа
+                ]
+            }
         }
-        service.events().insert(calendarId="primary", body=event).execute()
+
+        result = service.events().insert(calendarId="primary", body=event).execute()
+        logger.info(f"Событие создано: {result.get('htmlLink')}")
         return True
     except Exception as e:
-        logger.error(f"Calendar error: {e}")
+        logger.error(f"Ошибка Calendar API: {e}")
         return False
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -122,7 +167,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(
                     f"✅ Google Calendar подключён!\n\n"
                     f"Обнови GOOGLE_TOKEN в Railway Variables:\n\n"
-                    f"{token_b64}"
+                    f"`{token_b64}`"
                 )
                 return
             except Exception as e:
@@ -159,10 +204,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 success = add_to_calendar(event_data)
                 if success:
                     await update.message.reply_text(
-                        f"✅ Добавлено в календарь: {event_data['title']} — {event_data['date']} в {event_data['time']}"
+                        f"✅ Добавлено в календарь!\n\n"
+                        f"📅 {event_data['title']}\n"
+                        f"🗓 {event_data['date']} в {event_data['time']}\n"
+                        f"⏰ Напоминания: за 1 день и за 2 часа"
                     )
                 else:
-                    await update.message.reply_text("Ошибка при добавлении в календарь. Проверь логи.")
+                    await update.message.reply_text(
+                        "❌ Ошибка при добавлении в календарь.\n"
+                        "Проверь логи в Railway → View logs"
+                    )
             return
     except (json.JSONDecodeError, KeyError):
         pass
