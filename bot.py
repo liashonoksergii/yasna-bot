@@ -45,7 +45,6 @@ def get_credentials():
     if not GOOGLE_TOKEN:
         return None
     try:
-        import base64
         token_json = base64.b64decode(GOOGLE_TOKEN).decode("utf-8")
         token_data = json.loads(token_json)
         creds = Credentials(
@@ -61,7 +60,7 @@ def get_credentials():
     except Exception as e:
         logger.error(f"Credentials error: {e}")
         return None
-        
+
 def add_to_calendar(event_data):
     creds = get_credentials()
     if not creds:
@@ -119,11 +118,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "token": creds.token,
                     "refresh_token": creds.refresh_token
                 })
+                token_b64 = base64.b64encode(token_data.encode("utf-8")).decode("utf-8")
                 await update.message.reply_text(
                     f"✅ Google Calendar подключён!\n\n"
-                    f"Добавь в Railway Variables:\n\n"
-                    f"Название: GOOGLE_TOKEN\n"
-                    f"Значение: {token_data}"
+                    f"Обнови GOOGLE_TOKEN в Railway Variables:\n\n"
+                    f"{token_b64}"
                 )
                 return
             except Exception as e:
