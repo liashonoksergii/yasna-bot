@@ -45,7 +45,9 @@ def get_credentials():
     if not GOOGLE_TOKEN:
         return None
     try:
-        token_data = json.loads(GOOGLE_TOKEN)
+        import base64
+        token_json = base64.b64decode(GOOGLE_TOKEN).decode("utf-8")
+        token_data = json.loads(token_json)
         creds = Credentials(
             token=token_data.get("token"),
             refresh_token=token_data.get("refresh_token"),
@@ -59,7 +61,7 @@ def get_credentials():
     except Exception as e:
         logger.error(f"Credentials error: {e}")
         return None
-
+        
 def add_to_calendar(event_data):
     creds = get_credentials()
     if not creds:
