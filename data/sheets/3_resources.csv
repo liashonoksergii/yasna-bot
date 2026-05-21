@@ -1,0 +1,32 @@
+category,subcategory,name,address,phone,notes
+medical,,Gesundheitsamt Neustadt / Управление здравоохранения,Ратхаусплац 5 / Rathausplatz 5,+49-2131-88200,Пн–Пт 8:00–16:00
+medical,,Kassenärztlicher Bereitschaftsdienst / Дежурный врач,,116 117,Круглосуточно — бесплатно по любой страховке
+medical,pediatric,St.-Marien-Kinderklinik / Детская клиника им. Святой Марии,Кайзерштрассе 45 / Kaiserstraße 45,+49-2131-47661-0,Без записи Пн–Пт 7:00–20:00 / Сб–Вс 8:00–18:00; неотложка 24/7
+medical,pediatric,Kinder- und Jugendarztpraxis Dr. Keßler / Педиатр Dr. Кесслер,Шиллерштрассе 3 / Schillerstraße 3,+49-2131-334411,Пн–Пт 8:00–12:00 и 14:00–17:00; запись по телефону
+medical,family,Allgemeines Krankenhaus Neustadt / Городская больница,Гётештрассе 120 / Goethestraße 120,+49-2131-770-0,Скорая и плановые отделения 24/7
+medical,family,Schwangerschaftsberatung Caritas / Консультация беременных,Шиллерштрассе 15 / Schillerstraße 15,+49-2131-776611,Пн Вт Чт 9:00–12:00; Ср 14:00–17:00; бесплатно
+work,,Agentur für Arbeit Neustadt / Агентство занятости,Банхофштрассе 8 / Bahnhofstraße 8,+49-800-4555500,Пн–Пт 8:00–18:00; бесплатный номер
+work,,Jobcenter Neustadt,Мюнстерштрассе 22 / Münsterstraße 22,+49-2131-99100,Пн–Пт 8:00–16:00; приём по записи
+work,,IHK-Weiterbildungszentrum / Учебный центр ТПП,Индустриештрассе 15 / Industriestraße 15,+49-2131-880-0,Курсы переподготовки и повышения квалификации
+work,,Migrationsberatung AWO / Консультация для мигрантов AWO,Хауптштрассе 45 / Hauptstraße 45,+49-2131-556644,Пн Ср Пт 9:00–13:00; помощь с CV и признанием дипломов
+work,,Anerkennungsberatung IQ-Netzwerk / Признание иностранных дипломов,Берлинер Аллее 22 / Berliner Allee 22,+49-2131-667711,Пн–Пт 9:00–15:00; по записи
+education,kita,Kita St. Anna,Гартенштрассе 7 / Gartenstraße 7,+49-2131-221133,Ясли и сад 0–6 лет; Пн–Пт 7:00–17:00
+education,kita,Kita Sonnenschein,Линденаллее 3 / Lindenallee 3,+49-2131-445566,0–6 лет; Пн–Пт 7:30–17:00; мест нет до сент. 2026
+education,kita,Kita Regenbogen / Радуга,Кирхштрассе 14 / Kirchstraße 14,+49-2131-334477,0–6 лет; русскоязычный персонал; Пн–Пт 7:00–18:00
+education,grundschule,Grundschule Am Stadtpark / Нач.школа у городского парка,Ам Штадтпарк 1 / Am Stadtpark 1,+49-2131-667788,Кл. 1–4; Willkommensklasse (интеграция) для новоприбывших
+education,grundschule,Friedrich-Schiller-Grundschule,Шиллерштрассе 44 / Schillerstraße 44,+49-2131-445533,Кл. 1–4; продлёнка до 16:00
+education,school,Max-Planck-Gymnasium,Бисмаркштрассе 88 / Bismarckstraße 88,+49-2131-889900,Кл. 5–12; Willkommensklasse; перевод документов — уточнять
+education,ausbildung,Berufskolleg Neustadt / Профколледж,Индустриештрассе 44 / Industriestraße 44,+49-2131-441100,Ausbildung и Berufsvorbereitung; иностранные дипломы — уточнять
+education,,DaZ-Sprachkurse / Курсы немецкого как иностранного,Гётештрассе 22 / Goethestraße 22,+49-2131-334422,Уровни А1–С1; по направлению Jobcenter; вечерние группы
+documents,,Ausländerbehörde Neustadt / Ведомство по делам иностранцев,Кайзерштрассе 12 / Kaiserstraße 12,+49-2131-88300,Пн Вт Чт 8:00–16:00; Ср 8:00–12:00; только по записи онлайн
+documents,,Einwohnermeldeamt / Bürgerbüro / Бюро прописки,Ратхаусплац 1 / Rathausplatz 1,+49-2131-88400,Пн–Пт 8:00–18:00; Сб 9:00–13:00; прописка и выписка
+documents,,Rechtsberatung für Migranten Caritas / Юр.консультация для мигрантов,Шиллерштрассе 15 / Schillerstraße 15,+49-2131-776655,Ср 15:00–18:00; бесплатно; предварительная запись
+leisure,,Interkulturelles Zentrum Neustadt / Интеркультурный центр,Фридрихштрассе 33 / Friedrichstraße 33,+49-2131-553311,Мероприятия для всех национальностей; Пн–Сб 10:00–20:00
+leisure,,Russisch-Deutsches Kulturzentrum / Русско-немецкий культурный центр,Вальдштрассе 18 / Waldstraße 18,+49-2131-221144,Культурные события; кружки; Пн–Вс 10:00–20:00
+leisure,,Sportverein Neustadt 1903 e.V. / Спортивный клуб,Ам Штадтпарк 8 / Am Stadtpark 8,+49-2131-667733,Футбол; теннис; боевые искусства; от 5 лет
+leisure,,Moscheegemeinde Al-Nour / Мечеть Аль-Нур,Кирхштрассе 25 / Kirchstraße 25,+49-2131-445599,Пятничные молитвы; социальные мероприятия
+leisure,,Seniorentreff Neustadt / Клуб пожилых,Хауптштрассе 88 / Hauptstraße 88,+49-2131-334466,Для пожилых; Пн–Пт 9:00–16:00; чай и общение
+housing,,Mieterverein Neustadt e.V. / Союз арендаторов,Мюнстерштрассе 8 / Münsterstraße 8,+49-2131-553210,Юридические консультации; членство 80 €/год; экстренно — бесплатно
+housing,search,Wohnungsamt der Stadt / Городское жилищное управление,Ратхаусплац 5 / Rathausplatz 5,+49-2131-88500,Пн–Пт 8:00–16:00; социальное жильё; постановка в очередь
+housing,search,GWG Neustadt / Городское жилищное общество,Гартенштрассе 15 / Gartenstraße 15,+49-2131-440011,Социальные квартиры; приоритет семьям с детьми
+housing,,Soziale Wohnhilfe / Экстренное жильё города,Берлинер Аллее 15 / Berliner Allee 15,+49-2131-881199,Экстренное размещение 24/7; для семей и одиноких

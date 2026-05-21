@@ -1,0 +1,11 @@
+timestamp,sender,subject,category,subcategory,priority,action,assigned_to,confidence
+2026-05-20T09:14:32Z,fatima.hassan.90@gmail.com,Запись к врачу — как получить направление?,medical,pediatric,normal,draft_created,a.mueller@sozialamt-neustadt.de,0.94
+2026-05-20T10:07:18Z,z.yilmaz.nst@gmail.com,Нам нужен детский сад для сына 3 года,education,kita,normal,draft_created,c.wagner@sozialamt-neustadt.de,0.97
+2026-05-20T11:45:03Z,a.alrashid.de@gmail.com,Помощь с медицинской страховкой AOK,medical,family,normal,meeting_scheduled,a.mueller@sozialamt-neustadt.de,0.88
+2026-05-20T13:22:47Z,o.bondarenko22@gmail.com,Ищу работу программистом в Neustadt,work,,normal,draft_created,m.klein@sozialamt-neustadt.de,0.96
+2026-05-20T14:58:29Z,n.werner.nst@gmail.com,Русские кружки для детей в городе?,leisure,,low,draft_created,t.fischer@sozialamt-neustadt.de,0.91
+2026-05-20T16:03:55Z,k.nowak.de@gmail.com,Признание диплома медсестры — что дальше?,work,,normal,draft_created,m.klein@sozialamt-neustadt.de,0.85
+2026-05-20T17:31:04Z,nguyen.h.de@web.de,Frage ich hab Brief bekommen,unclear,,low,forwarded,l.weiss@sozialamt-neustadt.de,0.32
+2026-05-21T08:34:11Z,fatima.hassan.90@gmail.com,ребёнок болеет 3 дня температура помогите,medical,pediatric,urgent,draft_created,a.mueller@sozialamt-neustadt.de,0.97
+2026-05-21T10:17:43Z,i.kovalenko.nrw@gmail.com,Отопление не работает уже 2 недели!!,housing,problem,urgent,draft_created,p.schmidt@sozialamt-neustadt.de,0.99
+2026-05-21T14:02:08Z,m.petrova.neustadt@mail.ru,Aufenthaltserlaubnis — продление нужна помощь,documents,,normal,meeting_scheduled,s.braun@sozialamt-neustadt.de,0.98

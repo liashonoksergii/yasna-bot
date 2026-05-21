@@ -1,0 +1,8 @@
+staff_id,name,email,calendar_id,specialization
+1,Анна Мюллер (Anna Müller),a.mueller@sozialamt-neustadt.de,a.mueller@sozialamt-neustadt.de,medical
+2,Петер Шмидт (Peter Schmidt),p.schmidt@sozialamt-neustadt.de,p.schmidt@sozialamt-neustadt.de,housing
+3,Клаудия Вагнер (Claudia Wagner),c.wagner@sozialamt-neustadt.de,c.wagner@sozialamt-neustadt.de,education
+4,Маркус Кляйн (Markus Klein),m.klein@sozialamt-neustadt.de,m.klein@sozialamt-neustadt.de,work
+5,Сабина Браун (Sabine Braun),s.braun@sozialamt-neustadt.de,s.braun@sozialamt-neustadt.de,documents
+6,Томас Фишер (Thomas Fischer),t.fischer@sozialamt-neustadt.de,t.fischer@sozialamt-neustadt.de,leisure
+7,Лукас Вайс — дежурный (Lukas Weiß),l.weiss@sozialamt-neustadt.de,l.weiss@sozialamt-neustadt.de,general

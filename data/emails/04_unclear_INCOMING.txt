@@ -1,0 +1,35 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║   ВХОДЯЩЕЕ ПИСЬМО  №04 — unclear / 🟢 НИЗКИЙ / confidence: 28%      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+От:      nguyen.h.de@web.de
+Кому:    eingang@sozialamt-neustadt.de
+Тема:    Frage wegen Brief
+Дата:    21.05.2026, 16:49
+────────────────────────────────────────────────────────────────────────
+
+Hallo Guten Tag,
+
+Ich habe Brief bekommen von Amt.
+Ich nicht verstehen. Mein Freund sagt vielleicht Problem
+aber ich nicht weiß.
+
+Письмо пришло вчера. Там написано Bescheid.
+Я не понимаю что это значит. Это плохо?
+
+Надо что-то делать? Kann ich kommen? Wann?
+
+Mit freundlichen Grüßen
+Nguyen Hong
+
+P.S. Meine Nummer: +49-1577-9876543
+
+────────────────────────────────────────────────────────────────────────
+📌 МАРШРУТ В WORKFLOW:
+   Gmail Trigger → AI: Классификация
+   → category: unclear / confidence: 0.28 (< 0.7 → автоматически "unclear")
+   → priority: low / needs_meeting: false
+   → Switch → Ветка C (Передать соц.работнику)
+   → C1 Sheets: дежурный соц.работник (specialization: general)
+      → Лукас Вайс / l.weiss@sozialamt-neustadt.de
+   → C2 Gmail: переслать (черновик с пометкой [НЕПОНЯТНО])
