@@ -1,0 +1,879 @@
+{
+  "name": "Соц.служба — AI-ассистент",
+  "nodes": [
+    {
+      "id": "sn-001-title",
+      "name": "Sticky Note — Заголовок",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [60, -60],
+      "parameters": {
+        "content": "## 🏛️ Соц.служба — AI-ассистент\n\nКлассифицирует письма клиентов, готовит **черновики** в почте соц.работника.\n\n**AI не отправляет ничего клиенту напрямую — человек в петле.**\n\nGmail Trigger → AI классификатор → Switch → 3 ветки → Лог в Sheets",
+        "height": 140,
+        "width": 640,
+        "color": 7
+      }
+    },
+    {
+      "id": "sn-002-switch",
+      "name": "Sticky Note — Switch",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [780, 160],
+      "parameters": {
+        "content": "**3 ветки маршрутизации:**\n\n① Шаблонный ответ\n② Встреча\n③ Передать живому соц.работнику",
+        "height": 120,
+        "width": 260,
+        "color": 4
+      }
+    },
+    {
+      "id": "sn-003-branch-a",
+      "name": "Sticky Note — Ветка А",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1060, -200],
+      "parameters": {
+        "content": "**Ветка А — Шаблонный ответ**\n\nТянет шаблон + ресурсы из Sheets. Для housing/problem ищет управдома по адресу клиента. Черновик ответа создаётся в ящике назначенного соц.работника.",
+        "height": 100,
+        "width": 2040,
+        "color": 3
+      }
+    },
+    {
+      "id": "sn-004-branch-b",
+      "name": "Sticky Note — Ветка B",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1060, 660],
+      "parameters": {
+        "content": "**Ветка B — Встреча**\n\nНаходит 3 свободных слота в Google Calendar (09:00–17:00, следующие 7 дней). Создаёт tentative-событие и черновик с предложкой дат.",
+        "height": 100,
+        "width": 1360,
+        "color": 1
+      }
+    },
+    {
+      "id": "sn-005-branch-c",
+      "name": "Sticky Note — Ветка C",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1060, 960],
+      "parameters": {
+        "content": "**Ветка C — Непонятно**\n\nForward соц.работнику с пометкой [НЕПОНЯТНО] + резюме AI.",
+        "height": 100,
+        "width": 580,
+        "color": 2
+      }
+    },
+    {
+      "id": "sn-006-log",
+      "name": "Sticky Note — Лог",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [3220, 160],
+      "parameters": {
+        "content": "**Лог в Google Sheets**\n\nКаждое обработанное письмо → строка в листе `log`.\n\ntimestamp | sender | subject | category | subcategory | priority | action | assigned_to | confidence",
+        "height": 120,
+        "width": 400,
+        "color": 0
+      }
+    },
+    {
+      "id": "sn-007-sheets",
+      "name": "Sticky Note — Структура Sheets",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [60, 480],
+      "parameters": {
+        "content": "## Google Sheets — 6 листов в одном документе\n\n**templates:** `key` | `template_text`\n\n**resources:** `category` | `subcategory` | `name` | `address` | `phone` | `notes`\n\n**housing_buildings:** `address` | `district` | `landlord` | `manager_name` | `manager_phone` | `manager_hours`\n\n**staff:** `staff_id` | `name` | `email` | `calendar_id` | `specialization`\n\n**clients:** `email` | `name` | `family_size` | `district` | `address` | `last_category` | `last_contact` | `notes`\n\n**log:** `timestamp` | `sender` | `subject` | `category` | `subcategory` | `priority` | `action` | `assigned_to` | `confidence`",
+        "height": 360,
+        "width": 620,
+        "color": 5
+      }
+    },
+    {
+      "id": "node-gmail-trigger",
+      "name": "Новое письмо",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "credentials": {},
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            { "mode": "everyMinute" }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "readStatus": "unread",
+          "q": "is:unread"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-ai-agent",
+      "name": "AI: Классификация письма",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [480, 300],
+      "credentials": {},
+      "parameters": {
+        "options": {
+          "systemMessage": "Ты — ассистент-классификатор для социальной службы города.\n\nРОЛЬ: Ты помогаешь 27 социальным работникам, которые обслуживают 2500 клиентов. Твоя задача — классифицировать входящие письма и извлекать структурированные данные для соц.работника.\n\nПРАВИЛА:\n- Ориентируйся на смысл, не на грамматику.\n- При неуверенности → category: \"unclear\".\n- При экстренных ситуациях → priority: \"urgent\".\n\nКАТЕГОРИИ:\n\n1. medical — медицина (врач, болезнь, лекарства, страховая)\n   subcategory: \"pediatric\" (упомянуты дети) | \"family\" (иначе)\n\n2. work — работа (вакансии, центр занятости, разрешение на работу)\n   subcategory: null\n\n3. education — образование (школа, садик, курсы, ВУЗ)\n   subcategory: \"kita\" (0-6) | \"grundschule\" (7-10) | \"school\" (11-16) | \"ausbildung\" (17+) | null\n\n4. documents — оформление документов (вид на жительство, прописка, паспорт)\n   subcategory: null\n   → требует встречи\n\n5. leisure — досуг (землячества, церкви, спорт, волонтёрство)\n   subcategory: null\n\n6. housing — жильё (квартира, аренда, управдом)\n   subcategory:\n     \"search\" — поиск жилья\n     \"problem\" — поломки (отопление, вода, плесень)\n     \"contract\" — договор, повышение платы → требует встречи\n\n7. meeting — явная просьба о встрече\n   subcategory: null\n   → требует встречи\n\n8. unclear — непонятно\n   subcategory: null\n   → переслать соц.работнику\n\nПРИОРИТЕТ:\n- \"urgent\": острая болезнь, авария с жильём, истекающий срок документа\n- \"low\": благодарности, подтверждения\n- \"normal\": всё остальное\n\nФОРМАТ ОТВЕТА — только JSON, без markdown:\n{\n  \"category\": \"medical|work|education|documents|leisure|housing|meeting|unclear\",\n  \"subcategory\": \"...\" или null,\n  \"priority\": \"urgent|normal|low\",\n  \"needs_meeting\": true | false,\n  \"summary\": \"1-2 предложения: что хочет клиент\",\n  \"client_data\": {\n    \"name\": string | null,\n    \"family_size\": number | null,\n    \"children_ages\": number[],\n    \"district\": string | null,\n    \"address\": string | null\n  },\n  \"confidence\": 0.0-1.0\n}\n\nПРАВИЛА:\n- confidence < 0.7 → category: \"unclear\"\n- needs_meeting = true для documents, meeting, housing/contract\n- Возвращай ТОЛЬКО JSON-объект"
+        },
+        "text": "=Тема: {{ $json.subject }}\n\nТекст: {{ $json.text }}"
+      }
+    },
+    {
+      "id": "node-openai-model",
+      "name": "OpenAI Chat Model (gpt-4o-mini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [420, 520],
+      "credentials": {},
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 512
+        }
+      }
+    },
+    {
+      "id": "node-output-parser",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [640, 520],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"required\":[\"category\",\"priority\",\"needs_meeting\",\"summary\",\"client_data\",\"confidence\"],\"properties\":{\"category\":{\"type\":\"string\",\"enum\":[\"medical\",\"work\",\"education\",\"documents\",\"leisure\",\"housing\",\"meeting\",\"unclear\"]},\"subcategory\":{\"type\":[\"string\",\"null\"]},\"priority\":{\"type\":\"string\",\"enum\":[\"urgent\",\"normal\",\"low\"]},\"needs_meeting\":{\"type\":\"boolean\"},\"summary\":{\"type\":\"string\"},\"client_data\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":[\"string\",\"null\"]},\"family_size\":{\"type\":[\"number\",\"null\"]},\"children_ages\":{\"type\":\"array\",\"items\":{\"type\":\"number\"}},\"district\":{\"type\":[\"string\",\"null\"]},\"address\":{\"type\":[\"string\",\"null\"]}}},\"confidence\":{\"type\":\"number\",\"minimum\":0,\"maximum\":1}}}"
+      }
+    },
+    {
+      "id": "node-switch",
+      "name": "Маршрутизация по категории",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [780, 300],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "rule-a-1",
+                    "leftValue": "={{ ['medical','work','education','leisure','housing'].includes($json.output?.category) && $json.output?.subcategory !== 'contract' }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Шаблонный ответ"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "rule-b-1",
+                    "leftValue": "={{ ['documents','meeting'].includes($json.output?.category) || ($json.output?.category === 'housing' && $json.output?.subcategory === 'contract') }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Встреча"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "rule-c-1",
+                    "leftValue": "={{ $json.output?.category === 'unclear' }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Передать соц.работнику"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "node-a1-tpl",
+      "name": "Sheets: получить шаблон",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1060, 80],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "templates",
+          "mode": "name"
+        },
+        "lookupColumn": "key",
+        "lookupValue": "={{ $json.output?.category }}_{{ $json.output?.subcategory || '' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-a2-res",
+      "name": "Sheets: получить ресурсы",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1320, 80],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "resources",
+          "mode": "name"
+        },
+        "lookupColumn": "category",
+        "lookupValue": "={{ $('AI: Классификация письма').item.json.output?.category }}",
+        "options": {
+          "returnAllMatches": true
+        }
+      }
+    },
+    {
+      "id": "node-a3-hist",
+      "name": "Sheets: история клиента",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1580, 80],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "clients",
+          "mode": "name"
+        },
+        "lookupColumn": "email",
+        "lookupValue": "={{ $('Новое письмо').item.json.from }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-a4-if",
+      "name": "IF: авария с жильём?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1840, 80],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if-housing",
+              "leftValue": "={{ $('AI: Классификация письма').item.json.output?.category }}",
+              "rightValue": "housing",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "if-problem",
+              "leftValue": "={{ $('AI: Классификация письма').item.json.output?.subcategory }}",
+              "rightValue": "problem",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "node-a5-mgr",
+      "name": "Sheets: найти управдома",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2100, -100],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "housing_buildings",
+          "mode": "name"
+        },
+        "lookupColumn": "address",
+        "lookupValue": "={{ $('AI: Классификация письма').item.json.output?.client_data?.address || '' }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-a6-staff",
+      "name": "Sheets: выбрать соц.работника",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2360, 80],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "staff",
+          "mode": "name"
+        },
+        "lookupColumn": "specialization",
+        "lookupValue": "={{ $('AI: Классификация письма').item.json.output?.category }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-a7-code",
+      "name": "Code: собрать черновик",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2620, 80],
+      "parameters": {
+        "jsCode": "const ai = $('AI: Классификация письма').item.json.output || {};\nconst originalEmail = $('Новое письмо').item.json;\nconst staffItem = $input.item.json;\n\n// Template\nlet tplText = '';\ntry {\n  const tplRows = $('Sheets: получить шаблон').all();\n  if (tplRows.length > 0) tplText = tplRows[0].json.template_text || '';\n} catch(e) {}\n\n// Resources list\nlet resourcesList = '';\ntry {\n  const resRows = $('Sheets: получить ресурсы').all();\n  if (resRows.length > 0) {\n    resourcesList = '\\n\\nПолезные ресурсы:\\n' + resRows\n      .filter(r => !ai.subcategory || r.json.subcategory === ai.subcategory || !r.json.subcategory)\n      .map(r => {\n        let line = `• ${r.json.name || '—'}`;\n        if (r.json.phone) line += `, тел.: ${r.json.phone}`;\n        if (r.json.address) line += `, адрес: ${r.json.address}`;\n        return line;\n      }).join('\\n');\n  }\n} catch(e) {}\n\n// Client history\nlet clientHistory = 'Новый клиент — записей не найдено';\ntry {\n  const clientRows = $('Sheets: история клиента').all();\n  if (clientRows.length > 0) {\n    const c = clientRows[0].json;\n    clientHistory = `Последний контакт: ${c.last_contact || 'нет данных'}, категория: ${c.last_category || '-'}`;\n  }\n} catch(e) {}\n\n// Manager contact (housing/problem only)\nlet managerInfo = '';\ntry {\n  const mgrRows = $('Sheets: найти управдома').all();\n  if (mgrRows.length > 0) {\n    const m = mgrRows[0].json;\n    managerInfo = `\\n\\n📞 Контакт управдома:\\n${m.manager_name || '—'}\\nТел.: ${m.manager_phone || '—'}\\nЧасы работы: ${m.manager_hours || '—'}`;\n  }\n} catch(e) {}\n\nconst priorityMap = { urgent: '🔴 СРОЧНО', normal: '🟡 ОБЫЧНЫЙ', low: '🟢 НИЗКИЙ' };\nconst priorityLabel = priorityMap[ai.priority] || ai.priority;\n\nconst responseText = tplText || `Уважаемый(ая) клиент,\\n\\nБлагодарим Вас за обращение в нашу социальную службу.\\nВаш запрос принят и будет рассмотрен в ближайшее время.\\nЕсли у Вас возникнут дополнительные вопросы, пожалуйста, свяжитесь с нами.\\n\\nС уважением,\\nСоциальная служба`;\n\nconst draftBody = `--- РЕЗЮМЕ ДЛЯ СОЦ.РАБОТНИКА (удалить перед отправкой) ---\\nКатегория: ${ai.category || '—'} / ${ai.subcategory || '—'}\\nПриоритет: ${priorityLabel}\\nОт: ${ai.client_data?.name || originalEmail.from}\\nУверенность AI: ${Math.round((ai.confidence || 0) * 100)}%\\nСуть: ${ai.summary || '—'}\\nИстория клиента: ${clientHistory}\\nНазначен: ${staffItem.name || staffItem.email || '—'}\\n----------------------------------------------------------\\n\\n${responseText}${resourcesList}${managerInfo}`;\n\nreturn [{\n  json: {\n    ...ai,\n    draft_body: draftBody,\n    staff_email: staffItem.email || '',\n    staff_name: staffItem.name || '',\n    original_subject: originalEmail.subject || '',\n    original_from: originalEmail.from || '',\n    client_name: ai.client_data?.name || originalEmail.from\n  }\n}];"
+      }
+    },
+    {
+      "id": "node-a8-draft",
+      "name": "Gmail: черновик соц.работнику",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [2880, 80],
+      "credentials": {},
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "sendTo": "={{ $json.staff_email }}",
+        "subject": "={{ $json.priority === 'urgent' ? '[СРОЧНО]' : '[AI]' }} Re: {{ $json.original_subject }}",
+        "message": "={{ $json.draft_body }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-b1-staff",
+      "name": "Sheets: выбрать соц.работника B",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1060, 540],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "staff",
+          "mode": "name"
+        },
+        "lookupColumn": "specialization",
+        "lookupValue": "={{ $('AI: Классификация письма').item.json.output?.category }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-b2-cal",
+      "name": "Calendar: получить события",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [1320, 540],
+      "credentials": {},
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "returnAll": false,
+        "limit": 100,
+        "options": {
+          "timeMin": "={{ new Date().toISOString() }}",
+          "timeMax": "={{ new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "singleEvents": true,
+          "orderBy": "startTime"
+        }
+      }
+    },
+    {
+      "id": "node-b2b-slots",
+      "name": "Code: свободные слоты",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1580, 540],
+      "parameters": {
+        "jsCode": "const events = $input.all().map(e => e.json);\nconst staffData = $('Sheets: выбрать соц.работника B').item.json;\n\nconst WORK_START = 9;\nconst WORK_END = 17;\nconst SLOT_MIN = 30;\n\nconst busyTimes = events\n  .filter(e => e.start)\n  .map(e => ({\n    start: new Date(e.start.dateTime || e.start.date),\n    end: new Date(e.end.dateTime || e.end.date)\n  }));\n\nconst freeSlots = [];\nconst now = new Date();\nconst endRange = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);\n\nconst cursor = new Date(now);\ncursor.setSeconds(0, 0);\nconst mins = cursor.getMinutes();\ncursor.setMinutes(mins <= 30 ? 30 : 60, 0, 0);\nif (cursor.getHours() < WORK_START) cursor.setHours(WORK_START, 0, 0, 0);\n\nwhile (freeSlots.length < 3 && cursor < endRange) {\n  const day = cursor.getDay();\n  if (day === 0 || day === 6) {\n    cursor.setDate(cursor.getDate() + (day === 6 ? 2 : 1));\n    cursor.setHours(WORK_START, 0, 0, 0);\n    continue;\n  }\n  if (cursor.getHours() >= WORK_END) {\n    cursor.setDate(cursor.getDate() + 1);\n    cursor.setHours(WORK_START, 0, 0, 0);\n    continue;\n  }\n  const slotEnd = new Date(cursor.getTime() + SLOT_MIN * 60 * 1000);\n  if (slotEnd.getHours() > WORK_END || (slotEnd.getHours() === WORK_END && slotEnd.getMinutes() > 0)) {\n    cursor.setDate(cursor.getDate() + 1);\n    cursor.setHours(WORK_START, 0, 0, 0);\n    continue;\n  }\n  const isBusy = busyTimes.some(b => cursor < b.end && slotEnd > b.start);\n  if (!isBusy) {\n    freeSlots.push({\n      start: cursor.toISOString(),\n      end: slotEnd.toISOString(),\n      display: cursor.toLocaleString('ru-RU', {\n        weekday: 'short', day: 'numeric', month: 'long',\n        hour: '2-digit', minute: '2-digit'\n      })\n    });\n  }\n  cursor.setTime(cursor.getTime() + SLOT_MIN * 60 * 1000);\n}\n\nreturn [{\n  json: {\n    proposed_slots: freeSlots,\n    calendar_id: staffData.calendar_id || '',\n    staff_email: staffData.email || '',\n    staff_name: staffData.name || ''\n  }\n}];"
+      }
+    },
+    {
+      "id": "node-b3-event",
+      "name": "Calendar: создать встречу",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [1840, 540],
+      "credentials": {},
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "value": "={{ $json.calendar_id }}",
+          "mode": "id"
+        },
+        "start": "={{ $json.proposed_slots[0]?.start }}",
+        "end": "={{ $json.proposed_slots[0]?.end }}",
+        "additionalFields": {
+          "summary": "=Встреча с клиентом: {{ $('AI: Классификация письма').item.json.output?.client_data?.name || $('Новое письмо').item.json.from }}",
+          "description": "=Тема: {{ $('AI: Классификация письма').item.json.output?.category }}\nПодкатегория: {{ $('AI: Классификация письма').item.json.output?.subcategory || '—' }}\nСуть: {{ $('AI: Классификация письма').item.json.output?.summary }}",
+          "status": "tentative",
+          "attendees": "={{ $json.staff_email }}"
+        }
+      }
+    },
+    {
+      "id": "node-b4-draft",
+      "name": "Gmail: черновик с датами",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [2100, 540],
+      "credentials": {},
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "sendTo": "={{ $('Code: свободные слоты').item.json.staff_email }}",
+        "subject": "=[AI] Предложение даты встречи: Re: {{ $('Новое письмо').item.json.subject }}",
+        "message": "=--- РЕЗЮМЕ ДЛЯ СОЦ.РАБОТНИКА (удалить перед отправкой) ---\nКатегория: {{ $('AI: Классификация письма').item.json.output?.category }} / {{ $('AI: Классификация письма').item.json.output?.subcategory || '—' }}\nПриоритет: {{ $('AI: Классификация письма').item.json.output?.priority }}\nОт: {{ $('AI: Классификация письма').item.json.output?.client_data?.name || $('Новое письмо').item.json.from }}\nСуть: {{ $('AI: Классификация письма').item.json.output?.summary }}\n----------------------------------------------------------\n\nУважаемый(ая) клиент,\n\nБлагодарим Вас за обращение. Для решения Вашего вопроса предлагаем встретиться.\nПожалуйста, выберите удобное для Вас время:\n\n① {{ $json.proposed_slots[0]?.display || 'дата уточняется' }}\n② {{ $json.proposed_slots[1]?.display || 'дата уточняется' }}\n③ {{ $json.proposed_slots[2]?.display || 'дата уточняется' }}\n\nПодтвердите, пожалуйста, выбранный вариант ответным письмом.\n\nС уважением,\nСоциальная служба",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-c1-duty",
+      "name": "Sheets: дежурный соц.работник",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1060, 820],
+      "credentials": {},
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "staff",
+          "mode": "name"
+        },
+        "lookupColumn": "specialization",
+        "lookupValue": "general",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-c2-fwd",
+      "name": "Gmail: переслать",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1320, 820],
+      "credentials": {},
+      "parameters": {
+        "resource": "draft",
+        "operation": "create",
+        "sendTo": "={{ $json.email }}",
+        "subject": "=[НЕПОНЯТНО] FW: {{ $('Новое письмо').item.json.subject }}",
+        "message": "=AI не смог классифицировать это письмо.\n\nConfidence: {{ $('AI: Классификация письма').item.json.output?.confidence }}\nПредположение AI: {{ $('AI: Классификация письма').item.json.output?.summary || 'нет данных' }}\n\n--- Оригинал ---\nОт: {{ $('Новое письмо').item.json.from }}\nТема: {{ $('Новое письмо').item.json.subject }}\n\n{{ $('Новое письмо').item.json.text }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-z1-merge",
+      "name": "Объединение веток",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3160, 300],
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-z2-log",
+      "name": "Sheets: запись в лог",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [3420, 300],
+      "credentials": {},
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ new Date().toISOString() }}",
+            "sender": "={{ $('Новое письмо').item.json.from }}",
+            "subject": "={{ $('Новое письмо').item.json.subject }}",
+            "category": "={{ $('AI: Классификация письма').item.json.output?.category }}",
+            "subcategory": "={{ $('AI: Классификация письма').item.json.output?.subcategory || '' }}",
+            "priority": "={{ $('AI: Классификация письма').item.json.output?.priority }}",
+            "action": "={{ $('AI: Классификация письма').item.json.output?.needs_meeting ? 'meeting_scheduled' : ($('AI: Классификация письма').item.json.output?.category === 'unclear' ? 'forwarded' : 'draft_created') }}",
+            "assigned_to": "={{ $json.staff_email || $json.email || '' }}",
+            "confidence": "={{ $('AI: Классификация письма').item.json.output?.confidence }}"
+          }
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Новое письмо": {
+      "main": [
+        [
+          {
+            "node": "AI: Классификация письма",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (gpt-4o-mini)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI: Классификация письма",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI: Классификация письма",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Классификация письма": {
+      "main": [
+        [
+          {
+            "node": "Маршрутизация по категории",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Маршрутизация по категории": {
+      "main": [
+        [
+          {
+            "node": "Sheets: получить шаблон",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheets: выбрать соц.работника B",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheets: дежурный соц.работник",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: получить шаблон": {
+      "main": [
+        [
+          {
+            "node": "Sheets: получить ресурсы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: получить ресурсы": {
+      "main": [
+        [
+          {
+            "node": "Sheets: история клиента",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: история клиента": {
+      "main": [
+        [
+          {
+            "node": "IF: авария с жильём?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: авария с жильём?": {
+      "main": [
+        [
+          {
+            "node": "Sheets: найти управдома",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheets: выбрать соц.работника",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: найти управдома": {
+      "main": [
+        [
+          {
+            "node": "Sheets: выбрать соц.работника",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: выбрать соц.работника": {
+      "main": [
+        [
+          {
+            "node": "Code: собрать черновик",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: собрать черновик": {
+      "main": [
+        [
+          {
+            "node": "Gmail: черновик соц.работнику",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: черновик соц.работнику": {
+      "main": [
+        [
+          {
+            "node": "Объединение веток",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: выбрать соц.работника B": {
+      "main": [
+        [
+          {
+            "node": "Calendar: получить события",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar: получить события": {
+      "main": [
+        [
+          {
+            "node": "Code: свободные слоты",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: свободные слоты": {
+      "main": [
+        [
+          {
+            "node": "Calendar: создать встречу",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar: создать встречу": {
+      "main": [
+        [
+          {
+            "node": "Gmail: черновик с датами",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: черновик с датами": {
+      "main": [
+        [
+          {
+            "node": "Объединение веток",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sheets: дежурный соц.работник": {
+      "main": [
+        [
+          {
+            "node": "Gmail: переслать",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: переслать": {
+      "main": [
+        [
+          {
+            "node": "Объединение веток",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Объединение веток": {
+      "main": [
+        [
+          {
+            "node": "Sheets: запись в лог",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
+  },
+  "tags": [],
+  "pinData": {}
+}
